@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>TheSilentSignal</title>
+  <style>
+    /* ----- BASIC RESETS & LAYOUT ----- */
+    * {
+      margin: 0; 
+      padding: 0; 
+      box-sizing: border-box;
+    }
+    html, body {
+      width: 100%;
+      height: 100%;
+      background: #000; 
+      color: #00ff00; 
+      font-family: 'Courier New', monospace;
+      overflow: hidden; /* Hide scrollbars for a "fullscreen" terminal feel */
+    }
+    #terminal {
+      width: 100%;
+      height: 100%;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      overflow-y: auto;
+    }
+
+    /* ----- TERMINAL TEXT AND CURSOR ----- */
+    .output-line {
+      white-space: pre-wrap;
+      line-height: 1.5;
+    }
+    .input-line {
+      display: inline-block;
+    }
+    .blinking-cursor {
+      display: inline-block;
+      width: 10px;
+      background-color: #00ff00;
+      margin-left: 2px;
+      animation: blink 1s infinite;
+    }
+
+    @keyframes blink {
+      0%, 50% { opacity: 1; }
+      51%, 100% { opacity: 0; }
+    }
+
+    /* ----- GLITCH EFFECT (OPTIONAL) ----- */
+    /* This is a simple example. You can enhance the glitch effect with more complex CSS or JS. */
+    .glitch {
+      position: relative;
+      display: inline-block;
+    }
+    .glitch::before, .glitch::after {
+      content: attr(data-text);
+      position: absolute;
+      left: 0;
+      text-shadow: -2px 0 #ff00c1;
+      top: 0;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+    }
+    .glitch::before {
+      animation: glitch-anim 2s infinite linear alternate-reverse;
+    }
+    .glitch::after {
+      text-shadow: -2px 0 #00fff9;
+      animation: glitch-anim2 3s infinite linear alternate-reverse;
+    }
+    @keyframes glitch-anim {
+      0% { clip: rect(20px, 9999px, 25px, 0); }
+      25% { clip: rect(80px, 9999px, 85px, 0); }
+      50% { clip: rect(40px, 9999px, 45px, 0); }
+      75% { clip: rect(60px, 9999px, 65px, 0); }
+      100% { clip: rect(10px, 9999px, 15px, 0); }
+    }
+    @keyframes glitch-anim2 {
+      0% { clip: rect(30px, 9999px, 35px, 0); }
+      25% { clip: rect(70px, 9999px, 75px, 0); }
+      50% { clip: rect(10px, 9999px, 15px, 0); }
+      75% { clip: rect(50px, 9999px, 55px, 0); }
+      100% { clip: rect(20px, 9999px, 25px, 0); }
+    }
+  </style>
+</head>
+<body>
+  <!-- AUDIO ELEMENT FOR BEEP SOUNDS -->
+  <audio id="keyBeep" src="beep.mp3" preload="auto"></audio>
+  
+  <!-- MAIN TERMINAL CONTAINER -->
+  <div id="terminal"></div>
+
+  <!-- JAVASCRIPT FOR CLI FUNCTIONALITY -->
+  <script>
+    const terminal = document.getElementById('terminal');
+    const keyBeep = document.getElementById('keyBeep');
+
+    let inputActive = true; // Whether we are currently capturing typing
+    let inputBuffer = '';   // What the user has typed so far
+
+    // Print initial welcome text
+    printLine("Listening... Decoding... The Silent Signal awaits...");
+    printLine("Type 'help' for a list of commands.\n");
+
+    // Create the input line element
+    const inputLine = document.createElement('span');
+    inputLine.classList.add('input-line');
+    terminal.appendChild(inputLine);
+
+    // Create the blinking cursor
+    const cursor = document.createElement('span');
+    cursor.classList.add('blinking-cursor');
+    terminal.appendChild(cursor);
+
+    // Focus on the window to capture keystrokes
+    window.focus();
+
+    // Listen for keydown events
+    window.addEventListener('keydown', function(e) {
+      // Optional: play beep on each keypress (except shift, ctrl, alt, etc.)
+      if (!e.metaKey && !e.ctrlKey && !e.altKey && e.key.length === 1) {
+        keyBeep.currentTime = 0; // reset audio
+        keyBeep.play();
+      }
+
+      if (!inputActive) return; // If we're not accepting input, do nothing
+
+      if (e.key === 'Enter') {
+        // Process the typed command
+        processCommand(inputBuffer.trim());
+        inputBuffer = '';
+        updateInputLine();
+      } else if (e.key === 'Backspace') {
+        // Remove last character
+        inputBuffer = inputBuffer.slice(0, -1);
+        updateInputLine();
+      } else if (e.key.length === 1) {
+        // Add character to buffer
+        inputBuffer += e.key;
+        updateInputLine();
+      }
+    });
+
+    // Update the displayed text of the input line
+    function updateInputLine() {
+      inputLine.textContent = "> " + inputBuffer;
+      // Scroll to bottom of terminal so the user always sees the latest
+      terminal.scrollTop = terminal.scrollHeight;
+    }
+
+    // Print a new line in the terminal
+    function printLine(text = "") {
+      const line = document.createElement('div');
+      line.classList.add('output-line');
+      line.textContent = text;
+      terminal.appendChild(line);
+      // Scroll to bottom
+      terminal.scrollTop = terminal.scrollHeight;
+    }
+
+    // Command handler
+    function processCommand(cmd) {
+      // Echo the command
+      printLine("> " + cmd);
+
+      switch(cmd.toLowerCase()) {
+        case 'help':
+          printLine("Available commands:");
+          printLine("- about");
+          printLine("- signal");
+          printLine("- logs");
+          printLine("- access");
+          printLine("- contact");
+          printLine("- help");
+          printLine("(hint: try 'signal_33' for something hidden...)");
+          printLine();
+          break;
+
+        case 'about':
+          printLine("TheSilentSignal: An enigmatic broadcast.");
+          printLine("Seek the code 33 for deeper access...");
+          printLine();
+          break;
+
+        case 'signal':
+          printLine("Decoding The Signal...");
+          printLine("... ... ...");
+          printLine("Transmission unstable. Try 'signal_33'?");
+          printLine();
+          break;
+
+        case 'signal_33':
+          // Show some glitch text or hidden message
+          printLine("Signal 33 detected. Accessing hidden broadcast...\n");
+          // Example: A glitchy text
+          const glitchLine = document.createElement('div');
+          glitchLine.classList.add('output-line', 'glitch');
+          glitchLine.setAttribute('data-text', '[ENCRYPTED 33] ~~~~~~');
+          glitchLine.textContent = '[ENCRYPTED 33] ~~~~~~';
+          terminal.appendChild(glitchLine);
+          printLine();
+          break;
+
+        case 'logs':
+          printLine("[LOG: 2025-02-08 13:33] Transmission #1: ***-33-****");
+          printLine("[LOG: 2025-02-08 14:10] Transmission #2: ***----***");
+          printLine("More logs locked in 'access' area...");
+          printLine();
+          break;
+
+        case 'access':
+          printLine("Restricted. Enter passphrase (hint: '33'?).");
+          printLine();
+          break;
+
+        case '33':
+          printLine("Access Granted. Hidden logs unlocked...");
+          printLine("[Hidden LOG: System reboot :: Sub-channel 33 active]");
+          printLine("You have discovered the deeper layers of The Silent Signal.");
+          printLine("Type 'help' for more, or keep exploring...");
+          printLine();
+          break;
+
+        case 'contact':
+          printLine("Transmit your signal: [email protected]");
+          printLine("Or type your message here (not yet implemented).");
+          printLine();
+          break;
+
+        case '':
+          // Empty command (user just pressed Enter)
+          printLine();
+          break;
+
+        default:
+          printLine("Unknown command. Type 'help' for a list of commands.");
+          printLine();
+          break;
+      }
+    }
+  </script>
+</body>
+</html>
