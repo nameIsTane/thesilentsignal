@@ -2,246 +2,436 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>TheSilentSignal</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>TheSilentSignal - Terminal (Pixel Fade Lockout)</title>
   <style>
-    /* ----- BASIC RESETS & LAYOUT ----- */
-    * {
-      margin: 0; 
-      padding: 0; 
-      box-sizing: border-box;
-    }
+    @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
+
     html, body {
-      width: 100%;
+      margin: 0;
+      padding: 0;
       height: 100%;
-      background: #000; 
-      color: #00ff00; 
-      font-family: 'Courier New', monospace;
-      overflow: hidden; /* Hide scrollbars for a "fullscreen" terminal feel */
+      background-color: #000; 
+      font-family: 'VT323', monospace;
+      color: #00ff00;
+      font-size: 1.0rem;
+      overflow: hidden;
+      position: relative;
+      line-height: 1.25;
     }
-    #terminal {
-      width: 100%;
+
+    /* Subtle CRT scan line effect */
+    body::before {
+      content: "";
+      position: absolute;
+      top: 0; 
+      left: 0;
+      width: 100%; 
       height: 100%;
-      padding: 20px;
+      pointer-events: none;
+      background:
+        repeating-linear-gradient(
+          to bottom,
+          rgba(0,255,0,0.02),
+          rgba(0,255,0,0.02) 1px,
+          transparent 1px,
+          transparent 3px
+        );
+      mix-blend-mode: lighten;
+    }
+
+    .terminal-screen {
+      padding: 1rem;
+      text-shadow: 0 0 1px #00ff00;
+      height: 100%;
+      box-sizing: border-box;
       display: flex;
       flex-direction: column;
-      justify-content: flex-start;
-      overflow-y: auto;
+      position: relative;
+      z-index: 1; /* keep terminal above body::before */
     }
 
-    /* ----- TERMINAL TEXT AND CURSOR ----- */
-    .output-line {
-      white-space: pre-wrap;
-      line-height: 1.5;
+    .output {
+      flex: 1;
+      overflow-y: auto;
+      scrollbar-width: thin;
     }
-    .input-line {
-      display: inline-block;
+
+    .prompt {
+      display: flex;
+      align-items: center;
+      margin-top: 0.5rem;
+      cursor: text; /* indicates user can click to type */
     }
+
+    .prompt span {
+      margin-right: 0.3rem;
+    }
+
+    #typed-command {
+      white-space: pre; /* preserves spaces if user typed them */
+    }
+
     .blinking-cursor {
       display: inline-block;
-      width: 10px;
+      width: 8px;
+      height: 20px;
       background-color: #00ff00;
-      margin-left: 2px;
-      animation: blink 1s infinite;
+      vertical-align: bottom;
+      animation: blink 1s step-start infinite;
+      margin-left: 2px; 
     }
-
     @keyframes blink {
-      0%, 50% { opacity: 1; }
-      51%, 100% { opacity: 0; }
+      50% { opacity: 0; }
     }
 
-    /* ----- GLITCH EFFECT (OPTIONAL) ----- */
-    /* This is a simple example. You can enhance the glitch effect with more complex CSS or JS. */
+    /* The real input is off-screen but still focusable */
+    #cli-input {
+      position: absolute;
+      left: -9999px;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    /* Glitch class (unchanged) */
     .glitch {
       position: relative;
       display: inline-block;
     }
-    .glitch::before, .glitch::after {
+    .glitch::before,
+    .glitch::after {
       content: attr(data-text);
       position: absolute;
       left: 0;
-      text-shadow: -2px 0 #ff00c1;
       top: 0;
-      overflow: hidden;
-      clip: rect(0, 0, 0, 0);
+      opacity: 0.8;
+      color: #00ff00;
+      background: transparent;
+      clip: rect(0, 9999px, 0, 0);
     }
     .glitch::before {
       animation: glitch-anim 2s infinite linear alternate-reverse;
     }
     .glitch::after {
-      text-shadow: -2px 0 #00fff9;
-      animation: glitch-anim2 3s infinite linear alternate-reverse;
+      animation: glitch-anim2 2s infinite linear alternate-reverse;
     }
     @keyframes glitch-anim {
-      0% { clip: rect(20px, 9999px, 25px, 0); }
-      25% { clip: rect(80px, 9999px, 85px, 0); }
-      50% { clip: rect(40px, 9999px, 45px, 0); }
-      75% { clip: rect(60px, 9999px, 65px, 0); }
-      100% { clip: rect(10px, 9999px, 15px, 0); }
+      0% {
+        clip: rect(86px, 9999px, 30px, 0);
+        transform: skew(0.3deg);
+      }
+      50% {
+        clip: rect(10px, 9999px, 85px, 0);
+        transform: skew(0.2deg);
+      }
+      100% {
+        clip: rect(47px, 9999px, 10px, 0);
+        transform: skew(0.4deg);
+      }
     }
     @keyframes glitch-anim2 {
-      0% { clip: rect(30px, 9999px, 35px, 0); }
-      25% { clip: rect(70px, 9999px, 75px, 0); }
-      50% { clip: rect(10px, 9999px, 15px, 0); }
-      75% { clip: rect(50px, 9999px, 55px, 0); }
-      100% { clip: rect(20px, 9999px, 25px, 0); }
+      0% {
+        clip: rect(57px, 9999px, 10px, 0);
+        transform: skew(0.4deg);
+      }
+      50% {
+        clip: rect(25px, 9999px, 75px, 0);
+        transform: skew(0.2deg);
+      }
+      100% {
+        clip: rect(10px, 9999px, 53px, 0);
+        transform: skew(0.3deg);
+      }
+    }
+
+    /* Flicker animation for "Enter command:" */
+    @keyframes flicker {
+      0%   { opacity: 1; }
+      10%  { opacity: 0.3; }
+      20%  { opacity: 1; }
+      28%  { opacity: 0;   }
+      33%  { opacity: 1;   }
+      40%  { opacity: 0.4; }
+      55%  { opacity: 1;   }
+      60%  { opacity: 0.2; }
+      68%  { opacity: 1;   }
+      75%  { opacity: 0.5; }
+      83%  { opacity: 1;   }
+      100% { opacity: 1; }
+    }
+    .flicker {
+      animation: flicker 0.5s linear 1 forwards;
+    }
+
+    /* Red flicker for "The Silent Signal" */
+    @keyframes flicker-red {
+      0%   { color: #ff0000; } 
+      10%  { color: #700000; }
+      20%  { color: #ff0000; }
+      28%  { color: #300000; }
+      33%  { color: #ff0000; }
+      40%  { color: #800000; }
+      55%  { color: #ff0000; }
+      60%  { color: #400000; }
+      68%  { color: #ff0000; }
+      75%  { color: #900000; }
+      83%  { color: #ff0000; }
+      100% { color: #ff0000; }
+    }
+    .flicker-red {
+      animation: flicker-red 0.5s linear 1 forwards;
+    }
+
+    /* NEW: Pixel overlay for fade-out */
+    #pixel-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      display: none; /* hidden until lockout */
+      pointer-events: none; /* so it doesn't block clicks (not that it matters now) */
+      z-index: 9999; /* above everything else */
+    }
+    #pixel-overlay .pixel {
+      background: #000;
+      opacity: 0;       /* start transparent */
+      animation: fadePixel 0.4s forwards ease-in;
+    }
+    @keyframes fadePixel {
+      to {
+        opacity: 1;     /* fully black */
+      }
     }
   </style>
 </head>
 <body>
-  <!-- AUDIO ELEMENT FOR BEEP SOUNDS -->
-  <audio id="keyBeep" src="beep.mp3" preload="auto"></audio>
-  
-  <!-- MAIN TERMINAL CONTAINER -->
-  <div id="terminal"></div>
+  <div class="terminal-screen">
+    <!-- Header / Title -->
+    <div>The Silent Signal Termlink</div>
+    <div id="clearance-line">Clearance: RESTRICTED</div>
+    <br />
+    <div>[Programs]</div>
+    <div>[Logs]</div>
+    <div>[Access]</div>
+    <br />
+    <div id="current-time"></div>
+    
+    <!-- Scrollable command output area -->
+    <div class="output" id="cli-output"></div>
 
-  <!-- JAVASCRIPT FOR CLI FUNCTIONALITY -->
+    <!-- Prompt area (clickable to focus) -->
+    <div class="prompt" id="prompt-area">
+      <span>&gt;</span>
+      <span id="typed-command"></span>
+      <span class="blinking-cursor"></span>
+    </div>
+    <!-- Hidden actual input -->
+    <input 
+      type="text" 
+      id="cli-input" 
+      autocomplete="off" 
+      aria-label="Terminal Input"
+    />
+  </div>
+
+  <!-- NEW: Pixel overlay container -->
+  <div id="pixel-overlay"></div>
+
   <script>
-    const terminal = document.getElementById('terminal');
-    const keyBeep = document.getElementById('keyBeep');
+    const beepSound = new Audio('js/beep.mp3');
+    beepSound.volume = 0.2; // Adjust as needed
 
-    let inputActive = true; // Whether we are currently capturing typing
-    let inputBuffer = '';   // What the user has typed so far
+    const cliInput        = document.getElementById('cli-input');
+    const cliOutput       = document.getElementById('cli-output');
+    const typedCommandSpan= document.getElementById('typed-command');
+    const currentTime     = document.getElementById('current-time');
+    const clearanceLine   = document.getElementById('clearance-line');
+    const promptArea      = document.getElementById('prompt-area');
+    const pixelOverlay    = document.getElementById('pixel-overlay');
 
-    // Print initial welcome text
-    printLine("Listening... Decoding... The Silent Signal awaits...");
-    printLine("Type 'help' for a list of commands.\n");
+    // Track how many times the user has typed an unknown command
+    let unknownAttempts = 0;
+    let isLockedOut     = false;
 
-    // Create the input line element
-    const inputLine = document.createElement('span');
-    inputLine.classList.add('input-line');
-    terminal.appendChild(inputLine);
+    // 1) Show live time
+    function updateTime() {
+      const now = new Date();
+      const timeString = now.toLocaleTimeString();
+      const dateString = now.toLocaleDateString();
+      currentTime.textContent = `[${timeString} - ${dateString}]`;
+    }
+    setInterval(updateTime, 1000);
+    updateTime();
 
-    // Create the blinking cursor
-    const cursor = document.createElement('span');
-    cursor.classList.add('blinking-cursor');
-    terminal.appendChild(cursor);
-
-    // Focus on the window to capture keystrokes
-    window.focus();
-
-    // Listen for keydown events
-    window.addEventListener('keydown', function(e) {
-      // Optional: play beep on each keypress (except shift, ctrl, alt, etc.)
-      if (!e.metaKey && !e.ctrlKey && !e.altKey && e.key.length === 1) {
-        keyBeep.currentTime = 0; // reset audio
-        keyBeep.play();
-      }
-
-      if (!inputActive) return; // If we're not accepting input, do nothing
-
-      if (e.key === 'Enter') {
-        // Process the typed command
-        processCommand(inputBuffer.trim());
-        inputBuffer = '';
-        updateInputLine();
-      } else if (e.key === 'Backspace') {
-        // Remove last character
-        inputBuffer = inputBuffer.slice(0, -1);
-        updateInputLine();
-      } else if (e.key.length === 1) {
-        // Add character to buffer
-        inputBuffer += e.key;
-        updateInputLine();
+    // 2) Click prompt area to focus hidden input
+    promptArea.addEventListener('click', () => {
+      if (!isLockedOut) {
+        cliInput.focus();
       }
     });
 
-    // Update the displayed text of the input line
-    function updateInputLine() {
-      inputLine.textContent = "> " + inputBuffer;
-      // Scroll to bottom of terminal so the user always sees the latest
-      terminal.scrollTop = terminal.scrollHeight;
+    // 3) Beep on keydown
+    cliInput.addEventListener('keydown', () => {
+      if (isLockedOut) return;
+      beepSound.currentTime = 0;
+      beepSound.play();
+    });
+
+    // 4) Mirror input value to typedCommandSpan
+    cliInput.addEventListener('input', () => {
+      if (isLockedOut) return;
+      typedCommandSpan.textContent = cliInput.value;
+    });
+
+    // 5) Handle Enter
+    cliInput.addEventListener('keydown', (e) => {
+      if (isLockedOut) return;
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const command = cliInput.value.trim();
+        if (command) {
+          handleCommand(command);
+        }
+        cliInput.value = '';
+        typedCommandSpan.textContent = '';
+      }
+    });
+
+    // 6) Command flow
+    function handleCommand(command) {
+      appendOutput('> ' + command);
+
+      // Processing line
+      const processingLine = document.createElement('div');
+      processingLine.textContent = '[System: Processing command...]';
+      cliOutput.appendChild(processingLine);
+      cliOutput.scrollTop = cliOutput.scrollHeight;
+
+      // After delay, remove processing and type response
+      setTimeout(() => {
+        processingLine.remove();
+        const responseText = processCommand(command);
+        if (responseText) {
+          typeOutText(responseText, cliOutput);
+        }
+      }, 1000);
     }
 
-    // Print a new line in the terminal
-    function printLine(text = "") {
-      const line = document.createElement('div');
-      line.classList.add('output-line');
-      line.textContent = text;
-      terminal.appendChild(line);
-      // Scroll to bottom
-      terminal.scrollTop = terminal.scrollHeight;
-    }
+    // 7) Command logic
+    function processCommand(command) {
+      let response;
 
-    // Command handler
-    function processCommand(cmd) {
-      // Echo the command
-      printLine("> " + cmd);
-
-      switch(cmd.toLowerCase()) {
+      switch (command.toLowerCase()) {
         case 'help':
-          printLine("Available commands:");
-          printLine("- about");
-          printLine("- signal");
-          printLine("- logs");
-          printLine("- access");
-          printLine("- contact");
-          printLine("- help");
-          printLine("(hint: try 'signal_33' for something hidden...)");
-          printLine();
+          response = "Available commands: HELP, ABOUT, ACCESS, PROTOCOL 33, SIGNAL_33, etc.";
           break;
-
-        case 'about':
-          printLine("TheSilentSignal: An enigmatic broadcast.");
-          printLine("Seek the code 33 for deeper access...");
-          printLine();
-          break;
-
-        case 'signal':
-          printLine("Decoding The Signal...");
-          printLine("... ... ...");
-          printLine("Transmission unstable. Try 'signal_33'?");
-          printLine();
-          break;
-
-        case 'signal_33':
-          // Show some glitch text or hidden message
-          printLine("Signal 33 detected. Accessing hidden broadcast...\n");
-          // Example: A glitchy text
-          const glitchLine = document.createElement('div');
-          glitchLine.classList.add('output-line', 'glitch');
-          glitchLine.setAttribute('data-text', '[ENCRYPTED 33] ~~~~~~');
-          glitchLine.textContent = '[ENCRYPTED 33] ~~~~~~';
-          terminal.appendChild(glitchLine);
-          printLine();
-          break;
-
-        case 'logs':
-          printLine("[LOG: 2025-02-08 13:33] Transmission #1: ***-33-****");
-          printLine("[LOG: 2025-02-08 14:10] Transmission #2: ***----***");
-          printLine("More logs locked in 'access' area...");
-          printLine();
-          break;
-
         case 'access':
-          printLine("Restricted. Enter passphrase (hint: '33'?).");
-          printLine();
+          response = "Access page -> <a href='access.html'>Open Access</a>";
           break;
-
-        case '33':
-          printLine("Access Granted. Hidden logs unlocked...");
-          printLine("[Hidden LOG: System reboot :: Sub-channel 33 active]");
-          printLine("You have discovered the deeper layers of The Silent Signal.");
-          printLine("Type 'help' for more, or keep exploring...");
-          printLine();
+        case 'signal_33':
+          response = "<span class='glitch' data-text='Hidden message unlocked'>Hidden message unlocked: 33 is everywhere...</span>";
           break;
-
-        case 'contact':
-          printLine("Transmit your signal: [email protected]");
-          printLine("Or type your message here (not yet implemented).");
-          printLine();
+        case 'protocol 33':
+          clearanceLine.textContent = "Clearance: PERMITTED";
+          response = "PROTOCOL 33 accepted. Clearance updated to PERMITTED.";
           break;
-
-        case '':
-          // Empty command (user just pressed Enter)
-          printLine();
-          break;
-
         default:
-          printLine("Unknown command. Type 'help' for a list of commands.");
-          printLine();
-          break;
+          // Unknown command => Increment attempts
+          unknownAttempts++;
+          response = `Unknown command: ${command}`;
+          // If reached 3 unknown commands, lock out
+          if (unknownAttempts >= 3) {
+            lockUserOut();
+          }
+      }
+      return response;
+    }
+
+    // NEW: Lock user out & trigger pixel fade
+    function lockUserOut() {
+      isLockedOut = true;
+      cliInput.disabled = true;
+      typedCommandSpan.textContent = '';
+      appendOutput("<span style='color:red;'>[ALERT] Too many invalid attempts. System locked.</span>");
+
+      // Trigger the pixel fade after a short pause
+      setTimeout(() => {
+        fadePageWithPixels();
+      }, 800);
+    }
+
+    // 8) Insert a line in the output & return it
+    function appendOutput(text) {
+      const line = document.createElement('div');
+      line.innerHTML = text;
+      cliOutput.appendChild(line);
+      cliOutput.scrollTop = cliOutput.scrollHeight;
+      return line;
+    }
+
+    // 9) Type out the response text
+    function typeOutText(text, container, callback) {
+      const newLine = document.createElement('div');
+      container.appendChild(newLine);
+      container.scrollTop = container.scrollHeight;
+
+      let i = 0;
+      const speed = 50; // ms per character
+      const typingInterval = setInterval(() => {
+        if (isLockedOut) {
+          clearInterval(typingInterval);
+          return;
+        }
+        newLine.innerHTML = text.slice(0, i+1);
+        container.scrollTop = container.scrollHeight;
+        i++;
+        if (i >= text.length) {
+          clearInterval(typingInterval);
+          if (callback) callback();
+        }
+      }, speed);
+    }
+
+    // NEW: Create a grid of pixel squares & show them with random delays
+    function fadePageWithPixels() {
+      pixelOverlay.style.display = 'block'; // reveal overlay
+
+      const rows = 20;   // Adjust grid resolution as you like
+      const cols = 20;
+      pixelOverlay.style.display = 'grid';
+      pixelOverlay.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
+      pixelOverlay.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const pixel = document.createElement('div');
+          pixel.classList.add('pixel');
+          // Each pixel has random delay for fade
+          const delay = (Math.random() * 0.7).toFixed(2); // up to 0.7s
+          pixel.style.animationDelay = `${delay}s`;
+          pixelOverlay.appendChild(pixel);
+        }
       }
     }
+
+    // 10) Page load: typed line, flickers, etc.
+    window.addEventListener('load', () => {
+      cliInput.focus();
+      
+      const lineToType = "Listening… Decoding… <span id='theSignalRed'>The Silent Signal</span> awaits…";
+      typeOutText(lineToType, cliOutput, () => {
+        setTimeout(() => {
+          const line = appendOutput("Enter command:");
+          line.classList.add('flicker');
+
+          setTimeout(() => {
+            const signalSpan = document.getElementById('theSignalRed');
+            if (signalSpan) {
+              signalSpan.classList.add('flicker-red');
+            }
+          }, 700);
+        }, 1000);
+      });
+    });
   </script>
 </body>
 </html>
